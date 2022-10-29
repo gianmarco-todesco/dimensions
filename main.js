@@ -1,9 +1,9 @@
 window.addEventListener('DOMContentLoaded', initialize);
 
-let currentDim = 0;
-let targetDim = 0;
 let dimButtons;
 let d2Panel;
+let d3Panel;
+const hypercube = new Hypercube(5);
 
 function initialize() {
     addStyles();
@@ -11,10 +11,9 @@ function initialize() {
 
     let buttonsPanel = createButtonsPanel();
     container.appendChild(buttonsPanel);
-    let d3Panel = createD3Panel();
-    container.appendChild(d3Panel);    
 
-    d2Panel = new D2Panel(container);
+    d3Panel = new D3Panel(container, hypercube);
+    d2Panel = new D2Panel(container, hypercube);
 
     window.container = container;
     window.buttonsPanel  = buttonsPanel;
@@ -22,6 +21,7 @@ function initialize() {
     window.d2Panel = d2Panel;
 
     setInterval(tick, 20);
+    d2Panel.repaint();
 }
 
 function addStyles() {
@@ -84,113 +84,39 @@ function createButtonsPanel() {
         btn.innerText = ""+i;
         panel.appendChild(btn);
         let idx = i;
-        btn.onclick = () => setTargetDim(idx);
-        if(idx == currentDim) btn.classList.add('current');
+        btn.onclick = () => {
+            hypercube.targetDim = idx;
+            btn.classList.add('target');
+        };
+        if(idx == hypercube.currentDim) btn.classList.add('current');
         dimButtons.push(btn);
     }
     return panel;
 }
 
-function setTargetDim(d) {
-    if(d == targetDim) return;
-    dimButtons[targetDim].classList.remove('target');
-    targetDim = d;
-    if(targetDim != currentDim)
-        dimButtons[targetDim].classList.add('target');
-}
-
-function setCurrentDim(d) {
-    let i1 = Math.ceil(currentDim);
-    let i2 = Math.ceil(d);
-    if(i1 != i2) {
-        dimButtons[i1].classList.remove('current');
-        dimButtons[i2].classList.add('current');
-    }
-    if(d == targetDim) 
-       dimButtons[targetDim].classList.remove('target');
-    currentDim = d;
+function updateButtons() {
+    dimButtons.forEach((btn,i) => {
+        if(i==hypercube.currentDim) {
+            btn.classList.remove('target');
+            btn.classList.add("current");
+        } else if(i==hypercube.targetDim) {
+            btn.classList.remove('current');
+            btn.classList.add("target");
+        } else {
+            btn.classList.remove('current', 'target');
+        }
+    })
 }
 
 function tick() {
     const speed = 0.05;
-    if(targetDim > currentDim) {
-        setCurrentDim(Math.min(currentDim + speed, targetDim));
-    } else if(targetDim < currentDim) {
-        setCurrentDim(Math.max(currentDim - speed, targetDim));
+    if(hypercube.tick(speed)) {
+        updateButtons();
+        d2Panel.repaint();
+        d3Panel.update();
     }
-    d2Panel.setCurrentDim(currentDim);
-    d2Panel.repaint();
 }
 
 
-function createD3Panel() {
-    let panel = document.createElement('div');
-    panel.classList.add('d3-panel');
-    return panel;
-}
-
-/*
-let canvas, engine, scene, camera;
-
-window.addEventListener('DOMContentLoaded', ()=>{
-    canvas = document.getElementById('viewer');
-    canvas.addEventListener('wheel', evt => evt.preventDefault());
-    engine = new BABYLON.Engine(canvas, true);
-    scene = new BABYLON.Scene(engine);
-    scene
-    camera = new BABYLON.ArcRotateCamera('cam', 
-            Math.PI/2,0.7,
-            15, 
-            new BABYLON.Vector3(0,0,0), 
-            scene);
-    camera.attachControl(canvas,true);
-    camera.wheelPrecision = 50;
-    camera.lowerRadiusLimit = 3;
-    camera.upperRadiusLimit = 13*2;            
-
-    populateScene();
-        
-    engine.runRenderLoop(()=>scene.render());
-    window.addEventListener("resize", () => engine.resize());
-});
-
-function populateScene() {
-
-
-    var light = new BABYLON.DirectionalLight("dir01", new BABYLON.Vector3(0, -1, 0), scene);
-	light.position = new BABYLON.Vector3(0, 10, 0);
-
-	//var lightSphere = BABYLON.Mesh.CreateSphere("sphere", 10, 2, scene);
-	//lightSphere.position = light.position;
-	//lightSphere.material = new BABYLON.StandardMaterial("light", scene);
-	//lightSphere.material.emissiveColor = new BABYLON.Color3(1, 1, 0);
-
-	// Ground
-	var ground = BABYLON.MeshBuilder.CreateGround("ground", {width:10, height:10}, scene);
-    window.ground = ground;
-	var groundMaterial = new BABYLON.StandardMaterial("ground", scene);
-	groundMaterial.specularColor = new BABYLON.Color3(0, 0, 0);
-    groundMaterial.diffuseColor = new BABYLON.Color3(1, 1, 1);
-    
-	ground.position.y = -2.05;
-	ground.material = groundMaterial;
-
-	// objects
-    let cube = BABYLON.MeshBuilder.CreateBox('a', {size:1}, scene);
-    let cube2 = BABYLON.MeshBuilder.CreateBox('a', {size:1}, scene);
-    cube2.position.set(2,2,2)
-    
-	// Shadows
-	var shadowGenerator = new BABYLON.ShadowGenerator(1024, light);
-	shadowGenerator.getShadowMap().renderList.push(cube);
-	shadowGenerator.useBlurExponentialShadowMap = true;
-    shadowGenerator.useKernelBlur = true;
-    shadowGenerator.blurKernel = 128;
-
-	ground.receiveShadows = true;
-
-}
-
-*/
 
 
