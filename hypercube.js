@@ -1,5 +1,9 @@
 "use strict";
 
+function getParameter(t, t0,t1) {
+    return t<t0?0:t>t1?1:(t-t0)/(t1-t0);
+}
+
 class Vertex {
     constructor(idx) { 
         this.idx = idx; 
@@ -22,8 +26,8 @@ class Hypercube {
     constructor(maxDim = 5) {
         this.maxDim = maxDim;
         this._build();
-        this.currentDim = 2.0;
-        this.targetDim = 2.0;
+        this.currentDim = this.targetDim = 2.0;
+        
     }
 
     _build() {
@@ -57,7 +61,9 @@ class Hypercube {
         this._currentDim = d;
         let floorD = this.floorD = Math.floor(d);
         let ceilD = this.ceilD = Math.ceil(d);
-        let parameter = this.parameter = d-floorD;
+        let t = d - floorD;
+        let parameter = this.parameter = getParameter(t, 0, 0.8);
+        this.endParameter = getParameter(t, 0.8, 1.0);
         const lowerLimit = 1<<floorD;
         const upperLimit = 1<<ceilD;
         const maxDim = this.maxDim;
@@ -74,17 +80,9 @@ class Hypercube {
             e.isNew = e.isVisible && (e.va.idx>=lowerLimit || e.vb.idx>=lowerLimit);
         });
     }
-
-    /*
-    getDimParam(d) {
-        if(d<this.floorD) return 1.0;
-        else if(d==this.floorD) return this._currentDim - this.floorD;
-        else return 0.0;
-    }
-    */
-
+    
     tick(dt = 0.050) {
-        const transitionTime = 2; // seconds to change dimension
+        const transitionTime = 2.5; // seconds to change dimension
         const ds = dt / transitionTime;
         if(this._currentDim < this._targetDim) {
             this.currentDim = Math.min(this._targetDim, this._currentDim + ds);

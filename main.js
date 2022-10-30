@@ -4,6 +4,10 @@ let dimButtons;
 let d2Panel;
 let d3Panel;
 const hypercube = new Hypercube(5);
+let oldTime;
+
+function getTime() { return performance.now() * 0.001; }
+
 
 function initialize() {
     addStyles();
@@ -20,8 +24,14 @@ function initialize() {
     window.d3Panel = d3Panel;
     window.d2Panel = d2Panel;
 
+    oldTime = getTime();
     setInterval(tick, 20);
     d2Panel.repaint();
+
+    window.addEventListener("resize", function () {
+        d2Panel.repaint();
+        d3Panel.resize();
+    });
 }
 
 function addStyles() {
@@ -31,11 +41,9 @@ function addStyles() {
         #animation-container {
             display:flex;
             flex-direction:row;
-            border:solid 3px blue;
         }
 
         .buttons-panel {
-            border:solid 3px cyan;
             display:flex;
             flex-direction:column;
             gap:30px;
@@ -43,10 +51,15 @@ function addStyles() {
         }
         .buttons-panel button {
             border-radius:50%;
-            width:30px;
-            height:30px;
-            border:solid 1px gray;
-            background-color: #BBB;
+            width:50px;
+            height:50px;
+            border:none;
+            background-color: transparent;
+            padding:0;
+            margin:0;
+            color:black;
+            font-size:40px;
+            line-height:50px;
         }
         .buttons-panel button:active {
             background-color:red;
@@ -55,20 +68,35 @@ function addStyles() {
             background-color: #DDD;
         }
         .buttons-panel button.current {
-            background-color:yellow;
+            color:red;
         }
         .buttons-panel button.target {
-            border:solid 3px yellow;
+            border:solid 3px red;
+            animation: pulse 1s infinite;
         }
 
         .d3-panel {
-            flex:1;
-            border:solid 1px gray;
+            flex:1;            
+        }
+        .d3-panel canvas {
+            outline:none;
         }
         .d2-panel {
             flex:1;
-            border:solid 1px magenta;
+        }
 
+        @keyframes pulse {
+            0% {
+                border-color:red;
+            }
+        
+            50% {
+                border-color:transparent;
+            }
+        
+            100% {
+                border-color:red;
+            }
         }
 
     `;
@@ -96,8 +124,9 @@ function createButtonsPanel() {
 
 function updateButtons() {
     dimButtons.forEach((btn,i) => {
-        if(i==hypercube.currentDim) {
-            btn.classList.remove('target');
+        if(i==hypercube.ceilD) {
+            if(i==hypercube.currentDim)
+                btn.classList.remove('target');
             btn.classList.add("current");
         } else if(i==hypercube.targetDim) {
             btn.classList.remove('current');
@@ -109,8 +138,10 @@ function updateButtons() {
 }
 
 function tick() {
-    const speed = 0.05;
-    if(hypercube.tick(speed)) {
+    let time = getTime();
+    let dt = time-oldTime;
+    oldTime = time;
+    if(hypercube.tick(dt)) {
         updateButtons();
         d2Panel.repaint();
         d3Panel.update();

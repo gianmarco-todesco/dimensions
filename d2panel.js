@@ -13,6 +13,14 @@ class D2Panel {
         container.appendChild(panel);
         this.vertices = hypercube.vertices.map(v=>({x:0, y:0, idx:v.idx, hv:v}));
         this.base = Array(5).fill().map(()=>[0,0]);
+        this.labels = [
+            "punto",
+            "segmento",
+            "quadrato",
+            "cubo",
+            "4-ipercubo",
+            "5-ipercubo"
+        ];
     }
     
     repaint() {
@@ -24,11 +32,12 @@ class D2Panel {
         this.computePoints();
         this.drawEdges();
         this.drawPoints();
+        this.drawLabel();
     }
 
     computeBase() {
         const base = this.base;
-        const unit = 40.0;
+        const unit = 60.0;
         function setBase(i,p,t=1) { base[i][0] = p[0]*unit*t; base[i][1] = p[1]*unit*t; }
         function getDir(phi) { return [Math.cos(phi), Math.sin(phi)]; }
         let v45 = getDir(Math.PI/4);
@@ -103,7 +112,7 @@ class D2Panel {
     drawPoints() {
         const ctx = this.ctx;
         ctx.beginPath();
-        const r = 2;
+        const r = 4;
         this.hypercube.vertices.filter(e=>e.isVisible).forEach(v=>{
             let p = this.vertices[v.idx];
             ctx.moveTo(p.x+r, p.y);
@@ -116,102 +125,23 @@ class D2Panel {
         ctx.stroke();
     }
 
-    setCurrentDim(d) {
-        this.currentDim = d;
-        const floorD = Math.floor(d);
-        const ceilD = Math.ceil(d);
-        
-        // i vertici con i>=upperLimit sono invisibili
-        const lowerLimit = 1<<floorD;
-        const upperLimit = 1<<ceilD;
-        this.vertices.forEach(v => {
-            v.isVisible = v.i<upperLimit;
-            v.isNew = lowerLimit <= v.i && v.i<upperLimit; 
-        });
-        this.edges.forEach(e => {
-            e.isVisible = e.va.i<upperLimit && e.vb.i<upperLimit;
-            e.isNew = e.isVisible && (e.va.i>=lowerLimit || e.vb.i>=lowerLimit);
-        });
 
-        let t = d-floorD;
-        let ts = [...Array(this.maxDim).keys()]
-            .map(i => i<floorD ? 1 : i<ceilD ? t : 0);
-
-        const localParameter = (t0,t1) => t<=t0?0:t>=t1?1:(t-t0)/(t1-t0);
-        let adjustParameter, sizeParameter, colorParameter;
-        if(floorD == 5) {
-            adjustParameter = localParameter(0.0, 0.2);
-            sizeParameter = localParameter(0.2, 0.6);
-            colorParameter = localParameter(0.6,1.0);
-        } else {
-            adjustParameter = 0;
-            sizeParameter = localParameter(0.0, 0.5);
-            colorParameter = localParameter(0.5,1.0);
-        }
-        let tt = adjustParameter;
-        const ee = [[1,0]];
-        let phi = Math.PI/2*(1-tt) + 3*Math.PI/5*tt;
-        ee.push([Math.cos(phi), Math.sin(phi)]);
-        phi = (Math.PI/4)*(1-tt) + (Math.PI/5)*tt;
-        ee.push([Math.cos(phi), Math.sin(phi)]);
-        
-        phi = (3*Math.PI/4)*(1-tt) + (4*Math.PI/5)*tt;
-        ee.push([Math.cos(phi), Math.sin(phi)]);
-        
-        phi = 2*Math.PI/5;
-        ee.push([Math.cos(phi), Math.sin(phi)]);
-        
-        let buttShortingFactor = 0.5;
-        if(floorD == 3) buttShortingFactor = 0.5 * (1-sizeParameter) + 1.0 * sizeParameter;
-        else if(floorD >= 4) buttShortingFactor = 1;
-        
-        if(floorD == 2 || floorD == 3) { 
-            const s = buttShortingFactor;
-            ee[2][0] *= s; ee[2][1] *= s; 
-        } else if(floorD == 4) {
-            const s = (1-sizeParameter) * buttShortingFactor + sizeParameter;
-            ee[2][0] *= s; ee[2][1] *= s; 
-        }
-        let n = 1<<floorD;
-        this.base = ee.map(([x,y],i)=>[50*x*ts[i],50*y*ts[i]]);
-        this.repaint();
-        console.log(buttShortingFactor, sizeParameter, ee);
+    drawLabel() {
+        const parameter = this.hypercube.parameter;
+        // if(parameter > 0.1 && parameter < 0.7) return; 
+        const ctx = this.ctx;
+        ctx.globalAlpha = 1 
+            - getParameter(parameter, 0, 0.3) 
+            + getParameter(parameter, 0.7,1.0);
+        ctx.font = "40px Arial";
+        ctx.fillStyle = "black";
+        let d = parameter < 0.5 ? this.hypercube.floorD : this.hypercube.ceilD;
+        let txt = this.labels[d];
+        let textSize = ctx.measureText(txt);
+        let x = this.canvas.clientWidth/2;
+        let y = Math.min(...this.vertices.map(v=>v.y));
+        window.textSize = textSize;
+        ctx.fillText(txt, x-textSize.width/2,y-30);
     }
-
     
-
-    drawEdge(edge) {
-        const { ctx } = this;
-        ctx.beginPath();
-        ctx.moveTo(edge.va.x, edge.va.y);
-        ctx.lineTo(edge.vb.x, edge.vb.y);
-        ctx.lineWidth = 4;
-        ctx.strokeStyle = edge.isNew ? "magenta" : "blue";
-        ctx.stroke();
-    }
-
-    drawVertex(vertex) {
-        const { ctx } = this;
-        const { x, y, isNew } = vertex;
-        const r = 4;
-        ctx.beginPath();
-        ctx.moveTo(x+r, y);
-        ctx.arc(x,y,r,0,Math.PI*2);
-        ctx.fillStyle = isNew ? "magenta" : "yellow";
-        ctx.fill();
-        ctx.strokeStyle = "black";
-        ctx.lineWidth = "1";
-        ctx.stroke();
-    }    
-    repaint_old() {
-        const { canvas, ctx, maxDim, base, vertices, edges } = this;
-        const width = canvas.width = canvas.clientWidth;
-        const height = canvas.height = canvas.clientHeight;
-
-        ctx.clearRect(0,0,width,height);
-        this.computePoints();
-        edges.filter(e=>e.isVisible).forEach(e => this.drawEdge(e));
-        vertices.filter(v=>v.isVisible).forEach(v => this.drawVertex(v));
-    }
 }
-
